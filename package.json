@@ -1,0 +1,30 @@
+{
+  "name": "matter-gateway",
+  "version": "1.0.0",
+  "description": "Matter gateway unit — diploma thesis",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@matter/main": "^0.16.11",
+    "@matter/nodejs": "^0.16.11",
+    "@matter/nodejs-ble": "^0.16.11",
+    "@matter/types": "^0.16.11",
+    "better-sqlite3": "^9.6.0",
+    "dotenv": "^16.6.1",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.19.39",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "main": "dist/index.js",
+  "author": "",
+  "license": "ISC"
+}

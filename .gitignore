@@ -1,0 +1,17 @@
+# Dependency directories
+node_modules/
+
+# Build outputs
+dist/
+
+# Local storage and cache
+matter-storage/
+.expo/
+*.sqlite
+*.sqlite-journal
+
+# Environment secrets and credentials
+.env
+.env.*
+.env.secrets
+*.secrets
