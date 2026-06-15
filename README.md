@@ -84,26 +84,3 @@ MATTER_STORAGE_PATH=./matter-storage
    ```
 
 ---
-
-## Docker Deployment
-
-To allow mDNS (multicast DNS) discovery and Bluetooth scanning to operate correctly, the Docker container must run with host-level networking and system capabilities:
-
-```bash
-docker build -t matter-gateway .
-
-docker run -d \
-  --name matter-gateway \
-  --network host \
-  --cap-add=NET_RAW \
-  --cap-add=NET_ADMIN \
-  -v matter-storage:/app/matter-storage \
-  -v sqlite:/app/database.sqlite \
-  -e CLOUD_WS_URL=wss://your-cloud-api-domain.com/gateway \
-  -e GATEWAY_SECRET_TOKEN=your_token_here \
-  matter-gateway
-```
-
-### Volume Mounts
-- `/app/matter-storage`: Persists Matter security keys, fabric certificates, and session configurations.
-- `/app/database.sqlite`: Holds local SQLite database containing device metadata and group mappings.
