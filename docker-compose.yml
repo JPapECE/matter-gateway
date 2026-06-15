@@ -10,11 +10,10 @@ services:
     cap_add:
       - NET_RAW
       - NET_ADMIN
-    devices:
-      - /dev/dbus:/dev/dbus # DBus access for BlueZ BLE Central interactions
     volumes:
       - ./matter-storage:/app/matter-storage
       - ./database.sqlite:/app/database.sqlite
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
     environment:
       - CLOUD_WS_URL=wss://matter-cloud-api-production.up.railway.app/gateway
       - GATEWAY_SECRET_TOKEN=f662e8f42ccb421f80d47aeaec91a87d4f455d645ec23da47b43b1899a984f85
