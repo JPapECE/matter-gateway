@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  gateway:
+    build: .
+    image: jpagece/matter-gateway:latest
+    container_name: matter-gateway
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    devices:
+      - /dev/dbus:/dev/dbus # DBus access for BlueZ BLE Central interactions
+    volumes:
+      - ./matter-storage:/app/matter-storage
+      - ./database.sqlite:/app/database.sqlite
+    environment:
+      - CLOUD_WS_URL=wss://matter-cloud-api-production.up.railway.app/gateway
+      - GATEWAY_SECRET_TOKEN=f662e8f42ccb421f80d47aeaec91a87d4f455d645ec23da47b43b1899a984f85
+      - BLE_ENABLED=true
+      - BLE_HCI_ID=0
