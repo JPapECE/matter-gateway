@@ -453,9 +453,14 @@ class DeviceManager {
     for (const id of nodeIds) {
       const peer = this.getPeer(id);
       if (peer) {
-        console.log(`[DeviceManager] Peer ${id} in fabric — CASE on first command.`);
+        console.log(`[DeviceManager] Peer ${id} in fabric — starting connection and lifecycle setup...`);
         this.setupPeerLifecycle(id);
         
+        // Start the peer in a non-blocking way to trigger discovery and CASE establishment
+        peer.start().catch((err: any) => {
+          console.error(`[DeviceManager] Failed to start peer ${id}:`, err.message);
+        });
+
         // If it's already running or initialized, bind immediately
         if (peer.lifecycle.isOnline) {
           this.bindPhysicalStateSubscription(id);

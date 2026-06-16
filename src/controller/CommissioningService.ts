@@ -247,6 +247,11 @@ export class CommissioningService {
     // ── Persist device record ────────────────────────────────────────────────
     this.db.addDevice(nodeId, name, type);
 
+    // ── Setup connection and lifecycle subscription ──────────────────────────
+    await deviceManager.connect(nodeId).catch((err) => {
+      console.warn(`[Commission] Initial connect/subscription setup failed for ${nodeId}:`, err.message);
+    });
+
     // ── Capability discovery (background) ────────────────────────────────────
     // Run in background so the commission() call returns quickly to the client.
     // Errors here do not fail the commission — capabilities can be refreshed later.
