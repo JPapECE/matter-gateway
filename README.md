@@ -1,6 +1,6 @@
 # Matter Gateway
 
-The gateway component of the distributed, split-architecture Matter Controller. Designed to run on local hardware (e.g., Raspberry Pi) within the home network.
+The gateway component of the distributed, split-architecture Matter Controller. Designed to run on local hardware (e.g. Raspberry Pi) within the home network.
 
 It runs **matter.js** to manage local smart home devices over IP and Bluetooth Low Energy (BLE), maintaining a persistent outbound-only WebSocket connection to the hosted cloud server (`matter-cloud`).
 
