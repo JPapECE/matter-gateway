@@ -7,6 +7,7 @@ import WebSocket from "ws";
 import { config } from "../config.js";
 import { DatabaseService } from "../database/DatabaseService.js";
 import { commandHandler } from "./CommandHandler.js";
+import { getLocalIp } from "../local/LocalApiServer.js";
 import type { CommissioningService } from "../controller/CommissioningService.js";
 import type { GroupsManager } from "../controller/GroupsManager.js";
 import type { GatewayToCloud, CloudToGateway } from "../types/gateway-protocol.js";
@@ -116,14 +117,20 @@ class GatewayBridge {
       members: this.db!.getGroupMembers(g.groupId),
     }));
 
+    // Include local IP so the cloud can expose it to the app for LAN discovery
+    const localIp   = getLocalIp();
+    const localPort = config.localApiPort;
+
     const initStatePayload = {
       type: "init_state" as const,
       devices,
       groups,
+      localIp,
+      localPort,
     };
 
     this.send(initStatePayload);
-    console.log(`[GatewayBridge] Sent init_state. Devices: ${devices.length}, Groups: ${groups.length}`);
+    console.log(`[GatewayBridge] Sent init_state. Devices: ${devices.length}, Groups: ${groups.length}, LocalUrl: http://${localIp}:${localPort}`);
   }
 
   private startHeartbeat(): void {

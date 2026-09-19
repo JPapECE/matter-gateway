@@ -5,8 +5,11 @@
  */
 
 import { gatewayBridge } from "./GatewayBridge.js";
+import { broadcastLocal } from "../local/LocalApiServer.js";
 import type { DatabaseService } from "../database/DatabaseService.js";
 import type { EventMsg } from "../types/gateway-protocol.js";
+
+const CLOUD_SYNC_INTERVAL_MS = 6 * 3600 * 1000; // 6 hours
 
 class EventForwarder {
   private db: DatabaseService | null = null;
@@ -15,8 +18,10 @@ class EventForwarder {
 
   public init(db: DatabaseService): void {
     this.db = db;
-    // Periodically flush and clean the SQLite buffer (every 15s)
-    this.flushInterval = setInterval(() => this.flushUnsyncedReadings(), 15000);
+    // Sync unsynced readings once at startup (wait 10 seconds for bridge connection to settle)
+    setTimeout(() => this.flushUnsyncedReadings(), 10000);
+    // Periodically flush and clean the SQLite buffer (every 6 hours)
+    this.flushInterval = setInterval(() => this.flushUnsyncedReadings(), CLOUD_SYNC_INTERVAL_MS);
   }
 
   public forward(payload: any): void {
@@ -27,26 +32,32 @@ class EventForwarder {
       const { nodeId, power, energy } = payload;
       try {
         this.db.saveEnergyReading(nodeId, power, energy);
+        // Prune synced readings older than 24h on every write
+        this.db.clearSyncedEnergyReadings();
       } catch (err: any) {
         console.error("[EventForwarder] Failed to write energy reading to SQLite buffer:", err.message);
       }
 
-      // Trigger a flush immediately
-      this.flushUnsyncedReadings();
+      // Broadcast to local WS clients immediately (no cloud hop needed)
+      broadcastLocal(payload);
       return;
     }
 
-    // 2. Format all other events (online/offline, state changes) and send immediately
+    // 2. Format all other events (online/offline, state changes) and send to
+    //    both the cloud relay and any locally-connected WS clients.
     const eventMsg: EventMsg = {
       type: "event",
       event: payload.event,
       ...payload,
     };
 
+    // Always broadcast locally (works even when cloud is down)
+    broadcastLocal(payload);
+
     if (gatewayBridge.isConnectedAndAuthenticated()) {
       gatewayBridge.send(eventMsg);
     } else {
-      console.warn(`[EventForwarder] Offline: Event of type "${payload.event}" dropped.`);
+      console.warn(`[EventForwarder] Cloud offline: Event "${payload.event}" not relayed to cloud.`);
     }
   }
 
@@ -80,6 +91,8 @@ class EventForwarder {
             activePower: record.activePower,
             voltage: record.voltage,
             current: record.current,
+            frequency: record.frequency,
+            powerFactor: record.powerFactor,
             timestamp: record.recordedAt,
           },
           energy: {

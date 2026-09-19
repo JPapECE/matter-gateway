@@ -10,6 +10,7 @@ import { CommissioningService } from "./controller/CommissioningService.js";
 import { GroupsManager }        from "./controller/GroupsManager.js";
 import { gatewayBridge }        from "./bridge/GatewayBridge.js";
 import { eventForwarder }       from "./bridge/EventForwarder.js";
+import { localApiServer }       from "./local/LocalApiServer.js";
 
 const ENERGY_RECORD_INTERVAL_MS = 30_000;
 const ENERGY_RECORD_INITIAL_DELAY_MS = 10_000;
@@ -43,6 +44,9 @@ async function main(): Promise<void> {
 
   // 5. Gateway Bridge (WebSocket connection to cloud)
   gatewayBridge.init(db, commissioningService, groupsManager);
+
+  // 6. Local API Server (direct LAN access — works even when cloud is down)
+  localApiServer.start(db, commissioningService, groupsManager);
 
   console.log("─────────────────────────────────────────");
   console.log("  Gateway Services Ready.");
@@ -109,6 +113,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     console.log(`\n[Shutdown] Received ${signal}...`);
     eventForwarder.shutdown();
+    localApiServer.stop();
     await matterController.stop();
     process.exit(0);
   };

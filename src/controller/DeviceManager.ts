@@ -157,6 +157,8 @@ export interface PowerReading {
   activePower: number | null;
   voltage:     number | null;
   current:     number | null;
+  frequency:   number | null;
+  powerFactor: number | null;
   timestamp:   string;
 }
 
@@ -783,7 +785,7 @@ class DeviceManager {
    */
   async getPower(nodeId: string): Promise<PowerReading> {
     const ts  = new Date().toISOString();
-    const nil: PowerReading = { nodeId, activePower: null, voltage: null, current: null, timestamp: ts };
+    const nil: PowerReading = { nodeId, activePower: null, voltage: null, current: null, frequency: null, powerFactor: null, timestamp: ts };
 
     if (!ElectricalPowerMeasurementClient) return nil;
     const peer = this.getPeer(nodeId);
@@ -794,17 +796,24 @@ class DeviceManager {
 
     try {
       const state = ep.stateOf(ElectricalPowerMeasurementClient);
+      console.log(`[DeviceManager] Raw Power State for ${nodeId}:`, { ...state });
       const n     = (v: any): number | null => v == null ? null : Number(v);
+      
+      const rawVoltage = state.rmsVoltage ?? state.voltage;
+      const rawCurrent = state.rmsCurrent ?? state.activeCurrent;
+
       return {
         nodeId,
         activePower: n(state.activePower)  !== null ? n(state.activePower)!  / 1000 : null,
-        voltage:     n(state.voltage)      !== null ? n(state.voltage)!       / 1000 : null,
-        current:     n(state.activeCurrent) !== null ? n(state.activeCurrent)! / 1000 : null,
+        voltage:     n(rawVoltage)         !== null ? n(rawVoltage)!          / 1000 : null,
+        current:     n(rawCurrent)         !== null ? n(rawCurrent)!          / 1000 : null,
+        frequency:   n(state.frequency)    !== null ? n(state.frequency)!    / 1000 : null,
+        powerFactor: n(state.powerFactor)  !== null ? n(state.powerFactor)!  / 100 : null,
         timestamp:   ts,
       };
     } catch (err) {
       console.error(`[DeviceManager] getPower failed for ${nodeId}:`, err);
-      return nil;
+      return { nodeId, activePower: null, voltage: null, current: null, frequency: null, powerFactor: null, timestamp: ts };
     }
   }
 
@@ -828,6 +837,7 @@ class DeviceManager {
 
     try {
       const state   = ep.stateOf(ElectricalEnergyMeasurementClient);
+      console.log(`[DeviceManager] Raw Energy State for ${nodeId}:`, { ...state });
       const mwhToWh = (s: any): number | null => s?.energy == null ? null : Number(s.energy) / 1000;
 
       return {

@@ -54,4 +54,12 @@ export const config = {
   // Empty string means "no default" — the API request body must supply them.
   defaultWifiSsid:     optional("WIFI_SSID",     ""),
   defaultWifiPassword: optional("WIFI_PASSWORD", ""),
+
+  // ── Local API server (LAN direct access) ────────────────────────────────
+  // The gateway exposes a local HTTP + WebSocket server for direct app access
+  // when the app and gateway are on the same network, bypassing the cloud.
+  localApiPort: parseInt(optional("LOCAL_API_PORT", "4000"), 10),
+  // Reuse the gateway secret token as the local API key (same secret, different surface).
+  // Can be overridden with LOCAL_API_KEY env var.
+  localApiKey: optional("LOCAL_API_KEY", "") || optional("GATEWAY_SECRET_TOKEN", ""),
 };

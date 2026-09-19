@@ -28,6 +28,8 @@ export interface EnergyBufferRecord {
   activePower:              number | null;
   voltage:                  number | null;
   current:                  number | null;
+  frequency:                number | null;
+  powerFactor:              number | null;
   cumulativeEnergy:         number | null;
   periodicEnergy:           number | null;
   cumulativeEnergyExported: number | null;
@@ -67,6 +69,8 @@ export class DatabaseService {
         activePower              REAL,
         voltage                  REAL,
         current                  REAL,
+        frequency                REAL,
+        powerFactor              REAL,
         cumulativeEnergy         REAL,
         periodicEnergy           REAL,
         cumulativeEnergyExported REAL,
@@ -77,6 +81,10 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_energy_buffer_nodeId ON energy_buffer(nodeId);
       CREATE INDEX IF NOT EXISTS idx_energy_buffer_synced ON energy_buffer(synced);
     `);
+    
+    // Idempotently add new columns to existing SQLite DB instances
+    try { this.db.exec("ALTER TABLE energy_buffer ADD COLUMN frequency REAL"); } catch {}
+    try { this.db.exec("ALTER TABLE energy_buffer ADD COLUMN powerFactor REAL"); } catch {}
 
     // ── groups table ─────────────────────────────────────────────────────────
     this.db.exec(`
@@ -238,6 +246,8 @@ export class DatabaseService {
       activePower: number | null;
       voltage:     number | null;
       current:     number | null;
+      frequency:   number | null;
+      powerFactor: number | null;
     },
     energy: {
       cumulativeEnergy:         number | null;
@@ -248,16 +258,18 @@ export class DatabaseService {
   ): void {
     this.db.prepare(`
       INSERT INTO energy_buffer
-        (nodeId, activePower, voltage, current,
+        (nodeId, activePower, voltage, current, frequency, powerFactor,
          cumulativeEnergy, periodicEnergy,
          cumulativeEnergyExported, periodicEnergyExported,
          recordedAt, synced)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `).run(
       nodeId,
       power.activePower,
       power.voltage,
       power.current,
+      power.frequency,
+      power.powerFactor,
       energy.cumulativeEnergy,
       energy.periodicEnergy,
       energy.cumulativeEnergyExported,
@@ -281,9 +293,49 @@ export class DatabaseService {
   }
 
   clearSyncedEnergyReadings(): void {
-    const info = this.db.prepare(`DELETE FROM energy_buffer WHERE synced = 1`).run();
+    // Retain a 24-hour history buffer locally. Prune only synced readings older than 24h.
+    const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const info = this.db.prepare(`DELETE FROM energy_buffer WHERE synced = 1 AND recordedAt < ?`).run(cutoff);
     if (info.changes > 0) {
-      console.log(`[DB] Cleared ${info.changes} synced energy readings from buffer.`);
+      console.log(`[DB] Pruned ${info.changes} synced energy readings older than 24h.`);
     }
+  }
+
+  getEnergyHistory(nodeId: string, limit: number = 100, since?: string): EnergyBufferRecord[] {
+    const clampedLimit = Math.min(limit, 1000);
+    if (since) {
+      return this.db.prepare(`
+        SELECT * FROM energy_buffer
+        WHERE nodeId = ? AND recordedAt > ?
+        ORDER BY recordedAt DESC
+        LIMIT ?
+      `).all(nodeId, since, clampedLimit) as EnergyBufferRecord[];
+    } else {
+      return this.db.prepare(`
+        SELECT * FROM energy_buffer
+        WHERE nodeId = ?
+        ORDER BY recordedAt DESC
+        LIMIT ?
+      `).all(nodeId, clampedLimit) as EnergyBufferRecord[];
+    }
+  }
+
+  getEnergyStats(nodeId: string, since: string): any {
+    const row = this.db.prepare(`
+      SELECT
+        AVG(activePower)  AS avgPower,
+        MAX(activePower)  AS maxPower,
+        MIN(activePower)  AS minPower,
+        COUNT(*)          AS readingCount
+      FROM energy_buffer
+      WHERE nodeId = ? AND recordedAt > ? AND activePower IS NOT NULL
+    `).get(nodeId, since) as any;
+
+    return {
+      avgPower: row?.avgPower ?? null,
+      maxPower: row?.maxPower ?? null,
+      minPower: row?.minPower ?? null,
+      readingCount: row?.readingCount ?? 0,
+    };
   }
 }
